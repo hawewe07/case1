@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <title>Booking - Talulah's Daycare</title>
+</head>
+<body>
+    <header>
+        <a href="landingpage.html" class="logo">Talulah's Daycare</a>
+        <ul class="menu">
+            <li><a href="landingpage.html">Home</a></li>
+            <li><a href="booking.html">Book Now</a></li>
+            <li><a href="profile.html">Profile</a></li>
+        </ul>
+    </header>
+
+    <!-- Booking Section -->
+    <section class="booking" id="bookingId">
+        <div class="content">
+            <h2>Book a Schedule</h2>
+            <p>Select the dates and times to book daycare services for your dogs.</p>
+            <form id="bookingForm">
+                <h3>Pet Information</h3>
+                <label for="pet-name">Pet Name:</label>
+                <input type="text" id="pet-name" name="pet-name" required>
+                
+                <label for="pet-gender">Gender</label>
+                <select id="pet-gender" name="gender" required>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                </select>
+                
+                <label for="pet-age">Pet Age:</label>
+                <input type="number" id="pet-age" name="pet-age" required>
+                
+                <label for="pet-breed">Pet Breed:</label>
+                <input type="text" id="pet-breed" name="pet-breed" required>
+
+                <label for="preferences">Preferences:</label>
+                <input type="text" id="preferences" name="preferences">
+
+                <h3>Service Selection</h3>
+                <label for="service">Select Service:</label>
+                <select id="service" name="service" required>
+                    <option value="daycare - 20">Daycare - $20</option>
+                    <option value="grooming - 30">Grooming - $30</option>
+                    <option value="health-check - 40">Health Check - $40</option>
+                </select>
+
+                <h3>Calendar and Availability</h3>
+                <label for="start-date">Start Date:</label>
+                <input type="date" id="start-date" name="start-date" required>
+                
+                <label for="end-date">End Date:</label>
+                <input type="date" id="end-date" name="end-date" required>
+
+                <h3>Payment Information</h3>
+                <label for="card-number">Card Number:</label>
+                <input type="text" id="card-number" name="card-number" required>
+
+                <label for="card-expiry">Expiry Date:</label>
+                <input type="month" id="card-expiry" name="card-expiry" required>
+
+                <label for="card-cvc">CVC:</label>
+                <input type="text" id="card-cvc" name="card-cvc" required>
+
+                <button type="submit" class="submit-btn">Book Now</button>
+            </form>
+
+            <div id="confirmation" class="hidden">
+                <h3>Booking Confirmation</h3>
+                <p>Thank you for booking with Talulah's Daycare! You will receive a confirmation email shortly.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="copyright">
+        <div class="container">
+            <p>&copy; Copyright 2024 Gabrielle Lanuza (MSU-IIT). All rights reserved.</p>
+        </div>
+    </section>
+
+    <script>
+        document.getElementById('bookingForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const petName = document.getElementById('pet-name').value;
+            const gender = document.getElementById('pet-gender').value;
+            const petAge = document.getElementById('pet-age').value;
+            const petBreed = document.getElementById('pet-breed').value;
+            const preferences = document.getElementById('preferences').value;
+            const service = document.getElementById('service').value.split(' - ')[0];
+            const servicePrice = parseInt(document.getElementById('service').value.split(' - ')[1]);
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+
+            const bookingData = {
+                petName,
+                gender,
+                age: petAge,
+                breed: petBreed,
+                preferences,
+                service,
+                servicePrice,
+                startDate,
+                endDate
+            };
+
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Please log in to book a service.');
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:5000/api/bookings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(bookingData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('confirmation').classList.remove('hidden');
+                    document.getElementById('bookingForm').reset();  // Clear the form
+                    Swal.fire('Success', 'Booking successful!', 'success');
+                } else {
+                    Swal.fire('Error', data.msg, 'error');
+                }
+            } catch (error) {
+                console.error('Error during booking:', error);
+                Swal.fire('Error', 'An error occurred during booking.', 'error');
+            }
+        });
+
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" type="text/css" href="admin-style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.3.2/main.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@5.3.2/main.min.css">
+</head>
+<body>
+    <div class="sidebar">
+        <div class="con">
+            <a href="admin.html" class="logo">Admin</a>
+        </div>
+        <ul class="menu">
+            <li><a href="admin.html"><i class="fa fa-tachometer"></i> Dashboard</a></li>
+            <li><a href="admin-profile.html"><i class="fa fa-user"></i> Profile</a></li>
+            <li><a href="admin-users.html"><i class="fa fa-users"></i> Users</a></li>
+            <li><a href="#" onclick="logout()"><i class="fa fa-sign-out"></i> Logout</a></li>
+        </ul>
+    </div>
+    <div class="dashboard">
+        <div class="content">
+            <h2>Admin Dashboard</h2>
+            <div class="dashboard-box">
+                <div class="card">
+                    <h3>Total Users</h3>
+                    <p id="total-users">0</p>
+                </div>
+                <div class="card">
+                    <h3>Total Bookings</h3>
+                    <p id="total-bookings">0</p>
+                </div>
+                <div class="card">
+                    <h3>Total Revenue</h3>
+                    <p id="revenue">$0.00</p>
+                </div>
+            </div>
+            <div class="chart-row">
+                <div class="chart-container">
+                    <h3>Service Usage</h3>
+                    <canvas id="serviceChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Dog Gender Distribution</h3>
+                    <canvas id="genderChart"></canvas>
+                </div>
+                <div class="calendar-container">
+                    <h3>Booking Appointments</h3>
+                    <div id="calendar"></div>
+                </div>
+                <div class="chart-container-book">
+                    <h3>Booking Statistics</h3>
+                    <canvas id="bookingChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+   
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Please log in as admin.');
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+
+            try {
+                // Fetch users
+                let response = await fetch('http://localhost:5000/api/users', { headers });
+                if (!response.ok) {
+                    throw new Error(`Error fetching users: ${response.statusText}`);
+                }
+                let users = await response.json();
+                document.getElementById('total-users').innerText = users.length;
+
+                // Fetch bookings
+                response = await fetch('http://localhost:5000/api/bookings', { headers });
+                if (!response.ok) {
+                    throw new Error(`Error fetching bookings: ${response.statusText}`);
+                }
+                let bookings = await response.json();
+                document.getElementById('total-bookings').innerText = bookings.length;
+
+                // Calculate revenue
+                let revenue = bookings.reduce((acc, booking) => {
+                    return acc + (typeof booking.servicePrice === 'number' ? booking.servicePrice : 0);
+                }, 0);
+                document.getElementById('revenue').innerText = `$${revenue.toFixed(2)}`;
+
+                // Prepare data for charts
+                const serviceUsage = bookings.reduce((acc, booking) => {
+                    acc[booking.service] = (acc[booking.service] || 0) + 1;
+                    return acc;
+                }, {});
+
+                const genderDistribution = bookings.reduce((acc, booking) => {
+                    acc[booking.gender] = (acc[booking.gender] || 0) + 1;
+                    return acc;
+                }, {});
+
+                const monthlyBookings = bookings.reduce((acc, booking) => {
+                    const month = new Date(booking.startDate).toLocaleString('default', { month: 'short', year: 'numeric' });
+                    acc[month] = (acc[month] || 0) + 1;
+                    return acc;
+                }, {});
+
+                // Service Usage Chart
+                const serviceCtx = document.getElementById('serviceChart').getContext('2d');
+                new Chart(serviceCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: Object.keys(serviceUsage),
+                        datasets: [{
+                            data: Object.values(serviceUsage),
+                            backgroundColor: ['#DB9A57', '#89715A', '#7B5126'],
+                        }]
+                    }
+                });
+
+                // Dog Gender Chart
+                const genderCtx = document.getElementById('genderChart').getContext('2d');
+                new Chart(genderCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: Object.keys(genderDistribution),
+                        datasets: [{
+                            data: Object.values(genderDistribution),
+                            backgroundColor: ['#624308', '#A4710F'],
+                        }]
+                    }
+                });
+
+                // Booking Statistics Chart
+                const bookingCtx = document.getElementById('bookingChart').getContext('2d');
+                new Chart(bookingCtx, {
+                    type: 'line',
+                    data: {
+                        labels: Object.keys(monthlyBookings),
+                        datasets: [{
+                            label: 'Bookings per Month',
+                            data: Object.values(monthlyBookings),
+                            borderColor: '#36A2EB',
+                            fill: false
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            x: { title: { display: true, text: 'Month' } },
+                            y: { title: { display: true, text: 'Number of Bookings' }, beginAtZero: true }
+                        }
+                    }
+                });
+
+                // Calendar
+                const calendarEl = document.getElementById('calendar');
+                const calendar = new FullCalendar.Calendar(calendarEl, {
+                    initialView: 'dayGridMonth',
+                    events: bookings.map(booking => ({
+                        title: `${booking.petName} - ${booking.service}`,
+                        start: booking.startDate,
+                        end: booking.endDate,
+                    }))
+                });
+                calendar.render();
+            } catch (err) {
+                console.error('Error fetching data:', err);
+                alert('Failed to fetch data. Please try again later.');
+            }
+        });
+
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = 'index.html';
+        }
+
+        async function editUser(userId) {
+            // Implement edit user functionality here
+        }
+
+        async function deleteUser(userId) {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Please log in as admin.');
+                window.location.href = 'index.html';
+                return;
+            }
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+            try {
+                const res = await fetch(`http://localhost:5000/api/users/${userId}`, {
+                    method: 'DELETE',
+                    headers: headers
+                });
+                if (res.ok) {
+                    alert('User deleted successfully.');
+                    window.location.reload();
+                } else {
+                    alert('Error deleting user.');
+                }
+            } catch (err) {
+                console.error('Error deleting user:', err);
+            }
+        }
+
+        async function editBooking(bookingId) {
+            // Implement edit booking functionality here
+        }
+
+        async function deleteBooking(bookingId) {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Please log in as admin.');
+                window.location.href = 'index.html';
+                return;
+            }
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+            try {
+                const res = await fetch(`http://localhost:5000/api/bookings/${bookingId}`, {
+                    method: 'DELETE',
+                    headers: headers
+                });
+                if (res.ok) {
+                    alert('Booking deleted successfully.');
+                    window.location.reload();
+                } else {
+                    alert('Error deleting booking.');
+                }
+            } catch (err) {
+                console.error('Error deleting booking:', err);
+            }
+        }
+    </script>
+</body>
+</html>

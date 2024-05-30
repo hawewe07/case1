@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <title>Profile - Talulah's Daycare</title>
+</head>
+<body>
+    <header>
+        <a href="landingpage.html" class="logo">Talulah's Daycare</a>
+        <ul class="menu">
+            <li><a href="landingpage.html">Home</a></li>
+            <li><a href="booking.html">Book Now</a></li>
+            <li><a href="profile.html">Profile</a></li>
+        </ul>
+    </header>
+
+    <section class="profile" id="profileId">
+        <div class="content">
+            <h2>Profile Dashboard</h2>
+            <p>Manage your pet's preferences and personal information.</p>
+            <div class="profile-box">
+                <div class="profile-photo">
+                    <img id="dog-profile" src="img/37.jpg" alt="Dog Profile Photo">
+                    <input type="file" id="upload-photo" accept="image/*" onchange="previewImage(event)">
+                </div>
+                <div class="label">
+                    <label for="upload-photo">Upload Photo</label>
+                </div>
+                    
+                <form id="userForm">
+                    <div class="pet-info">
+                        <h3>Pet Information</h3>
+                        <label for="pet-name">Pet Name:</label>
+                        <input type="text" id="pet-name" name="pet-name" required>
+                        <label for="pet-gender">Gender:</label>
+                        <select id="pet-gender" name="gender" required>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                        </select>
+                        <label for="breed">Breed:</label>
+                        <input type="text" id="breed" name="breed" required>
+                        <label for="age">Age:</label>
+                        <input type="number" id="age" name="age" required>
+                        <label for="preferences">Preferences:</label>
+                        <textarea id="preferences" name="preferences" rows="4"></textarea>
+                     </div> 
+                     
+                     <div class="personal-info">
+                        <h3>Personal Information</h3>
+                        <label for="name">Name:</label>
+                        <input type="text" id="name" name="name" required>
+                        <label for="email">Email:</label>
+                        <input type="email" id="email" name="email" required>
+                        <label for="phone">Phone:</label>
+                        <input type="text" id="phone" name="phone" required>
+                        <button type="submit" class="submit-btn">Save Changes</button>
+                        <a href="index.html" class="logout-btn" onclick="logout()">Logout</a>
+                    </div> 
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        function previewImage(event) {
+            const reader = new FileReader();
+            reader.onload = function() {
+                const output = document.getElementById('dog-profile');
+                output.src = reader.result;
+            };
+            reader.readAsDataURL(event.target.files[0]);
+        }
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Please log in to view your profile.');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const response = await fetch('http://localhost:5000/api/users/profile', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                document.getElementById('pet-name').value = data.petName || '';
+                document.getElementById('pet-gender').value = data.gender || '';
+                document.getElementById('breed').value = data.breed || '';
+                document.getElementById('age').value = data.age || '';
+                document.getElementById('preferences').value = data.preferences || '';
+                document.getElementById('name').value = data.username || '';
+                document.getElementById('email').value = data.email || '';
+                document.getElementById('phone').value = data.phone || '';
+                if (data.profilePicture) {
+                    document.getElementById('dog-profile').src = data.profilePicture;
+                }
+            } else {
+                alert(data.msg);
+            }
+        });
+
+        document.getElementById('userForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const formData = new FormData();
+            formData.append('petName', document.getElementById('pet-name').value);
+            formData.append('gender', document.getElementById('pet-gender').value);
+            formData.append('breed', document.getElementById('breed').value);
+            formData.append('age', document.getElementById('age').value);
+            formData.append('preferences', document.getElementById('preferences').value);
+            formData.append('username', document.getElementById('name').value);
+            formData.append('email', document.getElementById('email').value);
+            formData.append('phone', document.getElementById('phone').value);
+
+            const photoInput = document.getElementById('upload-photo');
+            if (photoInput.files[0]) {
+                formData.append('profilePicture', photoInput.files[0]);
+            }
+
+            const token = localStorage.getItem('token');
+
+            const response = await fetch('http://localhost:5000/api/users/profile', {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert('Profile updated successfully!');
+                if (data.profilePicture) {
+                    document.getElementById('dog-profile').src = data.profilePicture;
+                }
+            } else {
+                alert(data.msg);
+            }
+        });
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'index.html';
+        }
+    </script>
+
+    <section id="copyright">
+        <div class="container">
+            <p>&copy; Copyright 2024 Gabrielle Lanuza (MSU-IIT). All rights reserved.</p>
+        </div>
+    </section>
+</body>
+</html>
+

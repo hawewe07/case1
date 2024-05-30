@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="admin-style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <title>Admin Dashboard - Users</title>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="con">
+            <a href="admin.html" class="logo">Admin</a>
+        </div>
+        <ul class="menu">
+            <li><a href="admin.html"><i class="fa fa-tachometer"></i> Dashboard</a></li>
+            <li><a href="admin-profile.html"><i class="fa fa-user"></i> Profile</a></li>
+            <li><a href="admin-users.html"><i class="fa fa-users"></i> Users</a></li>
+            <li><a href="#" onclick="logout()"><i class="fa fa-sign-out"></i> Logout</a></li>
+        </ul>
+    </div>
+    <section class="users">
+        <div class="content">
+            <h2>User Management</h2>
+            <div class="search-container">
+                <input type="text" id="search-input" placeholder="Search users..." onkeyup="searchUsers()">
+            </div>
+
+            <div class="user-list">
+                <table id="user-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Pet Name</th>
+                            <th>Gender</th>
+                            <th>Age</th>
+                            <th>Breed</th>
+                            <th>Preferences</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="user-tbody">
+                        <!-- User rows will be inserted here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- Modal for Editing User Details -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('edit-modal')">&times;</span>
+            <h2>Edit User</h2>
+            <form id="edit-form">
+                <label for="edit-name">Name:</label>
+                <input type="text" id="edit-name" name="name" required>
+                <label for="edit-email">Email:</label>
+                <input type="email" id="edit-email" name="email" required>
+                <label for="edit-phone">Phone:</label>
+                <input type="text" id="edit-phone" name="phone" required>
+                <label for="edit-pet-name">Pet Name:</label>
+                <input type="text" id="edit-pet-name" name="petName" required>
+                <label for="edit-gender">Gender:</label>
+                <input type="text" id="edit-gender" name="gender" required>
+                <label for="edit-age">Age:</label>
+                <input type="number" id="edit-age" name="age" required>
+                <label for="edit-breed">Breed:</label>
+                <input type="text" id="edit-breed" name="breed" required>
+                <label for="edit-preferences">Preferences:</label>
+                <textarea id="edit-preferences" name="preferences" required></textarea>
+                <button type="button" onclick="updateUser()">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Editing Booking Details -->
+    <div id="edit-booking-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('edit-booking-modal')">&times;</span>
+            <h2>Edit Booking</h2>
+            <form id="edit-booking-form">
+                <label for="edit-booking-date">Start Date:</label>
+                <input type="date" id="edit-booking-date" name="bookingDate" required>
+                <label for="edit-end-booking-date">End Date:</label>
+                <input type="date" id="edit-end-booking-date" name="endBookingDate" required>
+                <button type="button" onclick="updateBooking()">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const apiBaseUrl = 'http://localhost:5000/api';
+
+        async function loadUserData() {
+            const tbody = document.getElementById('user-tbody');
+            tbody.innerHTML = '';
+            const token = localStorage.getItem('token');
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+
+            try {
+                const res = await fetch(`${apiBaseUrl}/users`, { headers });
+                if (!res.ok) {
+                    throw new Error(`Error fetching users: ${res.statusText}`);
+                }
+                const users = await res.json();
+
+                if (!Array.isArray(users)) {
+                    throw new Error('Invalid response format: expected an array of users');
+                }
+
+                users.forEach(user => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${user.username}</td>
+                        <td>${user.email}</td>
+                        <td>${user.phone}</td>
+                        <td>${user.petName || ''}</td>
+                        <td>${user.gender || ''}</td>
+                        <td>${user.age || ''}</td>
+                        <td>${user.breed || ''}</td>
+                        <td>${user.preferences || ''}</td>
+                        <td>
+                            <button class="edit-btn" onclick="editUser('${user._id}')">Edit</button>
+                            <button class="edit-booking-btn" onclick="editUserBooking('${user._id}')">Edit Booking</button>
+                            <button class="delete-btn" onclick="deleteUser('${user._id}')">Delete</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (err) {
+                console.error('Error loading user data:', err);
+                Swal.fire('Error', err.message, 'error');
+            }
+        }
+
+        function searchUsers() {
+            const input = document.getElementById('search-input');
+            const filter = input.value.toUpperCase();
+            const table = document.getElementById('user-table');
+            const tr = table.getElementsByTagName('tr');
+
+            for (let i = 1; i < tr.length; i++) {
+                tr[i].style.display = 'none';
+                const td = tr[i].getElementsByTagName('td');
+                for (let j = 0; j < td.length; j++) {
+                    if (td[j]) {
+                        const txtValue = td[j].textContent || td[j].innerText;
+                        if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                            tr[i].style.display = '';
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        async function editUser(userId) {
+            const token = localStorage.getItem('token');
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+
+            try {
+                const res = await fetch(`${apiBaseUrl}/users/${userId}`, { headers });
+                if (!res.ok) {
+                    throw new Error(`Error fetching user: ${res.statusText}`);
+                }
+                const user = await res.json();
+
+                document.getElementById('edit-name').value = user.username;
+                document.getElementById('edit-email').value = user.email;
+                document.getElementById('edit-phone').value = user.phone;
+                document.getElementById('edit-pet-name').value = user.petName;
+                document.getElementById('edit-gender').value = user.gender;
+                document.getElementById('edit-age').value = user.age;
+                document.getElementById('edit-breed').value = user.breed;
+                document.getElementById('edit-preferences').value = user.preferences;
+
+                document.getElementById('edit-modal').style.display = 'block';
+
+                document.getElementById('edit-form').dataset.userId = userId;
+            } catch (err) {
+                console.error('Error fetching user data:', err);
+                Swal.fire('Error', err.message, 'error');
+            }
+        }
+
+        async function updateUser() {
+            const userId = document.getElementById('edit-form').dataset.userId;
+            const token = localStorage.getItem('token');
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+
+            const updatedUser = {
+                username: document.getElementById('edit-name').value,
+                email: document.getElementById('edit-email').value,
+                phone: document.getElementById('edit-phone').value,
+                petName: document.getElementById('edit-pet-name').value,
+                gender: document.getElementById('edit-gender').value,
+                age: document.getElementById('edit-age').value,
+                breed: document.getElementById('edit-breed').value,
+                preferences: document.getElementById('edit-preferences').value
+            };
+
+            try {
+                const res = await fetch(`${apiBaseUrl}/users/${userId}`, {
+                    method: 'PUT',
+                    headers,
+                    body: JSON.stringify(updatedUser)
+                });
+
+                if (!res.ok) {
+                    const errorData = await res.json();
+                    throw new Error(`Error updating user: ${errorData.msg}`);
+                }
+
+                Swal.fire('Success', 'User updated successfully', 'success');
+                document.getElementById('edit-modal').style.display = 'none';
+                loadUserData();
+            } catch (err) {
+                console.error('Error updating user data:', err);
+                Swal.fire('Error', err.message, 'error');
+            }
+        }
+
+        async function deleteUser(userId) {
+            const token = localStorage.getItem('token');
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+
+            Swal.fire({
+                title: 'Are you sure?',
+                text: "You won't be able to revert this!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, delete it!'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        const res = await fetch(`${apiBaseUrl}/users/${userId}`, {
+                            method: 'DELETE',
+                            headers
+                        });
+
+                        if (!res.ok) {
+                            const errorData = await res.json();
+                            throw new Error(`Error deleting user: ${errorData.msg}`);
+                        }
+
+                        Swal.fire('Deleted!', 'User has been deleted.', 'success');
+                        loadUserData();
+                    } catch (err) {
+                        console.error('Error deleting user:', err);
+                        Swal.fire('Error', err.message, 'error');
+                    }
+                }
+            });
+        }
+
+        async function editUserBooking(userId) {
+            const token = localStorage.getItem('token');
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+
+            try {
+                const res = await fetch(`${apiBaseUrl}/bookings?userId=${userId}`, { headers });
+                if (!res.ok) {
+                    throw new Error(`Error fetching booking: ${res.statusText}`);
+                }
+                const bookings = await res.json();
+
+                if (!Array.isArray(bookings) || bookings.length === 0) {
+                    throw new Error('No bookings found for this user');
+                }
+
+                document.getElementById('edit-booking-date').value = bookings[0].startDate.split('T')[0];
+                document.getElementById('edit-end-booking-date').value = bookings[0].endDate.split('T')[0];
+
+                document.getElementById('edit-booking-modal').style.display = 'block';
+
+                document.getElementById('edit-booking-form').dataset.bookingId = bookings[0]._id;
+            } catch (err) {
+                console.error('Error fetching booking data:', err);
+                Swal.fire('Error', err.message, 'error');
+            }
+        }
+
+        async function updateBooking() {
+            const bookingId = document.getElementById('edit-booking-form').dataset.bookingId;
+            const token = localStorage.getItem('token');
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+
+            const updatedBooking = {
+                startDate: document.getElementById('edit-booking-date').value,
+                endDate: document.getElementById('edit-end-booking-date').value
+            };
+
+            try {
+                const res = await fetch(`${apiBaseUrl}/bookings/${bookingId}`, {
+                    method: 'PUT',
+                    headers,
+                    body: JSON.stringify(updatedBooking)
+                });
+
+                if (!res.ok) {
+                    const errorData = await res.json();
+                    throw new Error(`Error updating booking: ${errorData.msg}`);
+                }
+
+                Swal.fire('Success', 'Booking updated successfully', 'success');
+                document.getElementById('edit-booking-modal').style.display = 'none';
+                loadUserData();
+            } catch (err) {
+                console.error('Error updating booking data:', err);
+                Swal.fire('Error', err.message, 'error');
+            }
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        document.addEventListener('DOMContentLoaded', loadUserData);
+
+        // Close the modal when clicking outside of the modal content
+        window.onclick = function(event) {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                if (event.target == modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

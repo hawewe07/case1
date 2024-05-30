@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <title>Talulah's Daycare</title>
+</head>
+<body>
+    <header>
+        <a class="logo" href="#" id="logo">Talulah's Daycare</a>
+        <div class="toggle" onclick="toggleMenu();"></div>
+        <ul class="menu">
+            <li>
+                <a href="https://web.facebook.com/gabriellelanuza">
+                <img src="img/icons8-facebook-50.png" alt="Facebook">
+                </a>
+            </li>
+            <li>
+                <a href="https://web.facebook.com/gabriellelanuza">
+                <img src="img/icons8-instagram-50.png" alt="Instagram">
+                </a>
+            </li>
+            <li>
+                <a href="https://web.facebook.com/gabriellelanuza">
+                <img src="img/icons8-x-50.png" alt="Twitter">
+                </a>
+            </li>
+        </ul>
+    </header>
+
+    <script type="text/javascript">
+        window.addEventListener('scroll', function() {
+            var header = document.querySelector('header');
+            header.classList.toggle('stcky', window.scrollY > 0);
+        });
+
+        function toggleMenu() {
+            var menuToggle = document.querySelector('.toggle');
+            var menu = document.querySelector('.menu');
+            menuToggle.classList.toggle('active');
+            menu.classList.toggle('active');
+        }
+
+        document.getElementById('logo').addEventListener('click', function(event) {
+            event.preventDefault();
+            const token = localStorage.getItem('token');
+            if (token) {
+                window.location.href = 'landingpage.html';
+            } else {
+                window.location.href = 'index.html';
+            }
+        });
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            try {
+                const res = await fetch('http://localhost:5000/api/users/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    const payload = JSON.parse(atob(data.token.split('.')[1]));
+                    if (payload.user.role === 'admin') {
+                        window.location.href = 'admin.html';
+                    } else {
+                        window.location.href = 'landingpage.html';
+                    }
+                } else {
+                    alert(data.msg);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Failed to connect to the server.');
+            }
+        }
+
+        async function handleRegister(event) {
+            event.preventDefault();
+            const username = document.getElementById('register-username').value;
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+
+            try {
+                const res = await fetch('http://localhost:5000/api/users/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, password })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert('Registration successful! Please log in.');
+                    showLogin();
+                } else {
+                    alert(data.msg);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Failed to connect to the server.');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('token');
+            if (token) {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                if (payload.user.role === 'admin') {
+                    window.location.href = 'admin.html';
+                } else {
+                    window.location.href = 'landingpage.html';
+                }
+            }
+        });
+
+        function showRegister() {
+            var x = document.getElementById("loginForm");
+            var y = document.getElementById("registerForm");
+            var z = document.getElementById("btn");
+            x.style.left = "-400px";
+            y.style.left = "50px";
+            z.style.left = "110px";
+        }
+
+        function showLogin() {
+            var x = document.getElementById("loginForm");
+            var y = document.getElementById("registerForm");
+            var z = document.getElementById("btn");
+            x.style.left = "50px";
+            y.style.left = "450px";
+            z.style.left = "0px";
+        }
+    </script>
+
+    <section class="auth" id="auth">
+        <div class="contactForm">
+            <div class="form-box">
+                <div class="btn-box">
+                    <div id="btn"></div>
+                    <button type="button" class="toggle-btn" onclick="showLogin()">Log In</button>
+                    <button type="button" class="toggle-btn" onclick="showRegister()">Register</button>
+                </div>
+                <form id="loginForm" class="input-group" onsubmit="handleLogin(event)">
+                    <input type="email" class="input-field" placeholder="Email" id="login-email" name="email" autocomplete="email" required>
+                    <input type="password" class="input-field" placeholder="Enter Password" id="login-password" name="current-password" autocomplete="current-password" required>
+                    <input type="checkbox" class="check-box" id="remember-me" name="remember"><span>Remember Password</span>
+                    <button type="submit" class="submit-btn">Log in</button>
+                </form>
+                <form id="registerForm" class="input-group" onsubmit="handleRegister(event)">
+                    <input type="text" class="input-field" placeholder="Username" id="register-username" name="username" autocomplete="username" required>
+                    <input type="email" class="input-field" placeholder="Email" id="register-email" name="email" autocomplete="email" required>
+                    <input type="password" class="input-field" placeholder="Enter Password" id="register-password" name="new-password" autocomplete="new-password" required>
+                    <input type="checkbox" class="check-box" id="register-remember"><span>Remember Password</span>
+                    <button type="submit" class="submit-btn">Register</button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <section id="copyright">
+        <div class="container">
+            <p>&copy; Copyright 2024 Gabrielle Lanuza (MSU-IIT). All rights reserved.</p>
+        </div>
+    </section>
+</body>
+</html>

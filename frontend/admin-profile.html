@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="admin-style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <title>Admin Profile - Talulah's Daycare</title>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="con">
+            <a href="admin.html" class="logo">Admin</a>
+        </div>
+        <ul class="menu">
+            <li><a href="admin.html"><i class="fa fa-tachometer"></i> Dashboard</a></li>
+            <li><a href="admin-profile.html"><i class="fa fa-user"></i> Profile</a></li>
+            <li><a href="admin-users.html"><i class="fa fa-users"></i> Users</a></li>
+            <li><a href="index.html" onclick="logout()"><i class="fa fa-sign-out"></i> Logout</a></li>
+        </ul>
+    </div>
+
+    <section class="profile" id="profileId">
+        <div class="content">
+            <h2>Admin Profile</h2>
+            <p>Manage your personal information.</p>
+            <div class="profile-box">
+                <div class="profile-photo">
+                    <img id="admin-profile" src="img/9.jpg" alt="Admin Profile Photo">
+                    <input type="file" id="upload-photo" accept="image/*" onchange="previewImage(event)">
+                </div>
+                <div class="label">
+                    <label for="upload-photo">Upload Photo</label>
+                </div>
+                <form>
+                    <div class="personal-info">
+                        <h3>Personal Information</h3>
+                        <label for="name">Name:</label>
+                        <input type="text" id="name" name="name" required>
+                        <label for="email">Email:</label>
+                        <input type="email" id="email" name="email" required>
+                        <label for="phone">Phone:</label>
+                        <input type="text" id="phone" name="phone" required>
+                        <button type="submit" class="submit-btn">Save Changes</button>
+                    </div>                   
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        // Preview selected image before upload
+        function previewImage(event) {
+            const reader = new FileReader();
+            reader.onload = function() {
+                const output = document.getElementById('admin-profile');
+                output.src = reader.result;
+            };
+            reader.readAsDataURL(event.target.files[0]);
+        }
+
+        // Fetch and display the admin profile on page load
+        document.addEventListener('DOMContentLoaded', async function() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Please log in to view your profile.');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:5000/api/admin/profile', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('name').value = data.name || '';
+                    document.getElementById('email').value = data.email || '';
+                    document.getElementById('phone').value = data.phone || '';
+                    if (data.profilePicture) {
+                        document.getElementById('admin-profile').src = data.profilePicture;
+                    }
+                } else {
+                    throw new Error(data.msg);
+                }
+            } catch (error) {
+                console.error('Error loading profile:', error);
+                alert('An error occurred while loading the profile.');
+            }
+        });
+
+        // Update admin profile information
+        document.querySelector('form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const formData = new FormData();
+            formData.append('name', document.getElementById('name').value);
+            formData.append('email', document.getElementById('email').value);
+            formData.append('phone', document.getElementById('phone').value);
+
+            const photoInput = document.getElementById('upload-photo');
+            if (photoInput.files[0]) {
+                formData.append('profilePicture', photoInput.files[0]);
+            }
+
+            const token = localStorage.getItem('token');
+
+            try {
+                const response = await fetch('http://localhost:5000/api/admin/profile', {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('Profile updated successfully!');
+                    if (data.profilePicture) {
+                        document.getElementById('admin-profile').src = data.profilePicture;
+                    }
+                } else {
+                    throw new Error(data.msg);
+                }
+            } catch (error) {
+                console.error('Error updating profile:', error);
+                alert('An error occurred while updating the profile.');
+            }
+        });
+
+        // Logout function
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>
